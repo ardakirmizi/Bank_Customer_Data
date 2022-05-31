@@ -1,0 +1,189 @@
+--Current tables
+SELECT top 1 * FROM COOP22.dbo.Customer
+SELECT top 1 * FROM COOP22.dbo.Branch
+SELECT top 1 * FROM COOP22.dbo.Branch_Detail
+SELECT top 1 * FROM COOP22.dbo.Town
+SELECT top 1 * FROM COOP22.dbo.City
+SELECT top 1 * FROM COOP22.dbo.Product
+SELECT top 1 * FROM COOP22.dbo.XSell_Datamart
+
+--"2" flag is posted for each product where the customer is active. Calculate the group_active_count variable by considering all the products of the customers.
+
+SELECT CUST_NO,PERIOD_ORDER,
+ SUM(CASE WHEN GRP1_F= '2'THEN 1 ELSE 0 END +
+           CASE WHEN GRP2_F = '2' THEN 1 ELSE 0 END +
+           CASE WHEN GRP3_F= '2' THEN 1 ELSE 0 END +
+           CASE WHEN GRP4_F = '2' THEN 1 ELSE 0 END +
+           CASE WHEN GRP5_F= '2'THEN 1 ELSE 0 END 
+          )AS GRUP_AKTIF_ADET
+FROM coop22.dbo.MAK_XSell_Datamart
+GROUP BY CUST_NO,PERIOD_ORDER
+ORDER BY 1,2
+
+
+--If a customer is active in at more then one product group, that customer is active. Calculate it yourself by excluding the ACT_CUST_F variable. Show the distribution of the number of active customers by year and month.
+
+SELECT 
+CASE 
+WHEN PERIOD_ORDER = '180' AND  GROUP_ACTIVE_C  > 1  THEN '202001'
+WHEN PERIOD_ORDER = '181' AND  GROUP_ACTIVE_C  > 1  THEN '202002'
+WHEN PERIOD_ORDER = '182' AND  GROUP_ACTIVE_C  > 1  THEN '202003'
+WHEN PERIOD_ORDER = '183' AND  GROUP_ACTIVE_C  > 1  THEN '202004'
+WHEN PERIOD_ORDER = '184' AND  GROUP_ACTIVE_C  > 1  THEN '202005'
+WHEN PERIOD_ORDER = '185' AND  GROUP_ACTIVE_C  > 1  THEN '202006'
+ELSE 'AKTIF_DEGIL'
+END AS DATE_PERIOD
+,COUNT(*) AS ADET
+FROM coop22.dbo.MAK_XSell_Datamart
+GROUP BY 
+CASE
+WHEN PERIOD_ORDER = '180' AND  GROUP_ACTIVE_C  > 1  THEN '202001'
+WHEN PERIOD_ORDER = '181' AND  GROUP_ACTIVE_C  > 1  THEN '202002'
+WHEN PERIOD_ORDER = '182' AND  GROUP_ACTIVE_C  > 1  THEN '202003'
+WHEN PERIOD_ORDER = '183' AND  GROUP_ACTIVE_C  > 1  THEN '202004'
+WHEN PERIOD_ORDER = '184' AND  GROUP_ACTIVE_C  > 1  THEN '202005'
+WHEN PERIOD_ORDER = '185' AND  GROUP_ACTIVE_C  > 1  THEN '202006'
+ELSE 'AKTIF_DEGIL'
+END
+ORDER BY 2 ASC
+
+--Create an sp with number plate information and opening date information as inputs. This sp will bring us the list of branches in the relevant province opened on and after the given date.
+
+
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE PROCEDURE dbo.GET_BRANCH_NO1
+    @OPENING_DATE VARCHAR(10),
+    @CITY_ID      VARCHAR(10)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT BRANCH_CODE ,BRANCH_NAME
+    FROM coop22.dbo.MAK_Branch_Detail AS BRND
+    ,coop22.dbo.MAK_Town TWN
+    WHERE BRND.TOWN_ID = TWN.TOWN_ID
+    AND @OPENING_DATE < Opening_Date
+    AND @CITY_ID = City_ID
+
+END
+GO
+
+EXEC dbo.GET_BRANCH_NO1 @OPENING_DATE= '16.05.2005' , @CITY_ID ='1'
+
+--Group non-business phone models and bring the number of customers for each brand.
+
+SELECT 
+CASE
+	WHEN isBusiness = 0 AND  Phone_Model LIKE '%_phone%'  THEN 'iPhone' 
+	WHEN isBusiness = 0 AND  Phone_Model LIKE '%huawe_%'  THEN 'Huawei' 
+	WHEN isBusiness = 0 AND  Phone_Model LIKE '%general mob_le%' THEN 'General Mobile'
+	WHEN isBusiness = 0 AND  Phone_Model LIKE '%lenovo%' THEN 'Lenovo'
+	WHEN isBusiness = 0 AND  Phone_Model LIKE '%lg%' THEN 'LG'
+	WHEN isBusiness = 0 AND  Phone_Model LIKE '%samsung%' THEN 'Samsung'
+	WHEN isBusiness = 0 AND  Phone_Model LIKE '%sony%' THEN 'Sony'
+	WHEN isBusiness = 0 AND  Phone_Model LIKE '%x_aom_%' THEN 'Xiaomi'
+	WHEN isBusiness = 0 AND ISNULL(Phone_Model,'') = '' THEN 'Telefon Bilgisi Yok' 
+	ELSE 'ISLETME'
+	END AS MODEL
+	,COUNT(*) AS ADET
+FROM coop22.dbo.MAK_Customer
+GROUP BY 
+CASE
+	WHEN isBusiness = 0 AND Phone_Model LIKE '%_phone%'  THEN 'iPhone' 
+	WHEN isBusiness = 0 AND Phone_Model LIKE '%huawe_%' THEN 'Huawei' 
+	WHEN isBusiness = 0 AND Phone_Model LIKE '%general mob_le%' THEN 'General Mobile'
+	WHEN isBusiness = 0 AND Phone_Model LIKE '%lenovo%' THEN 'Lenovo'
+	WHEN isBusiness = 0 AND Phone_Model LIKE '%lg%' THEN 'LG'
+	WHEN isBusiness = 0 AND Phone_Model LIKE '%samsung%' THEN 'Samsung'
+	WHEN isBusiness = 0 AND Phone_Model LIKE '%sony%' THEN 'Sony'
+	WHEN isBusiness = 0 AND Phone_Model LIKE '%x_aom_%' THEN 'Xiaomi'
+	WHEN isBusiness = 0 AND ISNULL(Phone_Model,'') = '' THEN 'Telefon Bilgisi Yok'
+	ELSE 'ISLETME'
+	END
+ORDER BY 2 ASC
+
+
+--Bring the gender distribution of customers with demand deposit accounts opened in 2015-01-01 and after. (Only YTL Accounts)
+
+
+SELECT 
+CASE 
+    WHEN GENDER = 'male' THEN 'ERKEK'
+    WHEN GENDER = 'female' THEN 'KADIN'
+    ELSE 'Bilinmiyor' END AS CINSIYET
+,COUNT(*) AS ADET
+FROM coop22.dbo.MAK_Customer AS CST
+,coop22.dbo.MAK_Product AS PRD
+WHERE CST.CustomerID = PRD.Customer_ID
+and currency='YTL'--YTL HESAPLAR
+and PRD.Product_Type = 'Demand'--VADESİZ
+and PRD.OPEN_DATE >= '01.01.2015'--2015 SONRASI
+GROUP BY 
+CASE 
+    WHEN GENDER = 'male' THEN 'ERKEK'
+    WHEN GENDER = 'female' THEN 'KADIN'
+    ELSE 'Bilinmiyor' 
+END
+
+--Bring the min, max and average time deposit accounts of university graduates. (Only TRY Accounts)
+
+
+SELECT CID.CustomerID
+,MIN(Balance)        AS MIN_BALANCE
+,MAX(Balance)        AS MAX_BALANCE
+,AVG(Balance)        AS AVG_BALANCE
+FROM coop22.dbo.MAK_Customer AS CID
+,coop22.dbo.MAK_Product AS PRD
+WHERE CID.CustomerID = PRD.Customer_ID
+and CID.Education='University'
+and currency='YTL'
+and PRD.Product_Type = 'Time Deposit'
+GROUP BY CID.[CustomerID ]
+
+--Calculate the age of the customers using their date of birth. Bring the number of customers '<18', '18-24', '25-34', '35-44', '45-54', '55-64', '> = 65'
+
+SELECT 
+CASE 
+	WHEN DATEDIFF(year,Birth_Date,GETDATE()) < 18 THEN '<18'
+	WHEN DATEDIFF(year,Birth_Date,GETDATE()) BETWEEN 18 AND 24 THEN '18-24'
+	WHEN DATEDIFF(year,Birth_Date,GETDATE()) BETWEEN 25 AND 34 THEN '25-34'
+	WHEN DATEDIFF(year,Birth_Date,GETDATE()) BETWEEN 35 AND 44 THEN '35-44'
+	WHEN DATEDIFF(year,Birth_Date,GETDATE()) BETWEEN 45 AND 54 THEN '45-54'
+	WHEN DATEDIFF(year,Birth_Date,GETDATE()) BETWEEN 55 AND 64 THEN '55-64'
+	WHEN DATEDIFF(year,Birth_Date,GETDATE()) >= 65 THEN '>=65' 
+	ELSE 'BOS'
+	END AS YAS_ARALIGI
+,COUNT(*) AS ADET
+FROM coop22.dbo.MAK_Customer 
+GROUP BY 
+CASE 
+	WHEN DATEDIFF(year,Birth_Date,GETDATE()) < 18 THEN '<18'
+	WHEN DATEDIFF(year,Birth_Date,GETDATE()) BETWEEN 18 AND 24 THEN '18-24'
+	WHEN DATEDIFF(year,Birth_Date,GETDATE()) BETWEEN 25 AND 34 THEN '25-34'
+	WHEN DATEDIFF(year,Birth_Date,GETDATE()) BETWEEN 35 AND 44 THEN '35-44'
+	WHEN DATEDIFF(year,Birth_Date,GETDATE()) BETWEEN 45 AND 54 THEN '45-54'
+	WHEN DATEDIFF(year,Birth_Date,GETDATE()) BETWEEN 55 AND 64 THEN '55-64'
+	WHEN DATEDIFF(year,Birth_Date,GETDATE()) >= 65 THEN '>=65' 
+	ELSE 'BOS'
+	END
+ORDER BY 2 
+--For Istanbul, Ankara and Izmir, bring the 3 districts with the highest population.
+
+SELECT  [Town_Name],[Population],[City_ID] 
+FROM coop22.dbo.MAK_Town
+WHERE [City_ID] =34 AND [Population] in (SELECT top 3 [Population] FROM coop22.dbo.MAK_Town WHERE [City_ID] = 34 ORDER BY [Population] DESC) 
+   OR [City_ID] =06 AND [Population] in (SELECT top 3  [Population] FROM coop22.dbo.MAK_Town WHERE [City_ID] = 06 ORDER BY  [Population] DESC)
+   OR [City_ID] =35 AND [Population] in (SELECT top 3  [Population] FROM coop22.dbo.MAK_Town WHERE [City_ID] = 35 ORDER BY [Population] DESC)
+
+--Compare the GROUP_ACTIVE_C status of customers in period 180 with period 185.
+
+
+SELECT A.CUST_NO, A.GROUP_ACTIVE_C AS [180], B.GROUP_ACTIVE_C AS [185]
+FROM coop22.dbo.[MAK_XSell_Datamart] AS A, coop22.dbo.[MAK_XSell_Datamart] AS B
+WHERE (A.PERIOD_ORDER = '180' AND B.PERIOD_ORDER = '185')
+AND A.CUST_NO=B.CUST_NO
+ORDER BY A.CUST_NO
