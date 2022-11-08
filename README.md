@@ -1,4 +1,4 @@
-# Bank-Customer-Data
+# Bank Customer Data
 Transactions with data containing customer and customer activity.
 
 
